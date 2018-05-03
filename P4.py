@@ -3,7 +3,8 @@ import cv2
 import os
 from moviepy.editor import VideoFileClip
 
-def calibrate_camera(img, directory = "camera_cal/", nx = 9, ny = 6):
+
+def calibrate_camera(img, directory="camera_cal/", nx=9, ny=6):
 	# Arrays to store information
 	objectPoints = []  # 3D points in real-world space
 	imagePoints = []  # 2D points in image-plane
@@ -24,17 +25,19 @@ def calibrate_camera(img, directory = "camera_cal/", nx = 9, ny = 6):
 	ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objectPoints, imagePoints, img_size, None, None)
 	return mtx, dist
 
+
 def distortion_correction(mtx, dist, img):
 	# Do camera calibration given object points and image points
 	undist = cv2.undistort(img, mtx, dist, None, mtx)
 	return undist
 
-#This code of based of the code in Color and Gradient
+
+# This code of based of the code in Color and Gradient
 def color_gradient(img):
 	# This part of the code is a modified version of the code presented in the lecture 30 - Color and gradient
 	# Note: img is the undistorted image
 	hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
-	s_channel = hls[:,:,2]
+	s_channel = hls[:, :, 2]
 
 	# Grayscale image
 	# NOTE: we already saw that standard grayscaling lost color information for the lane lines
@@ -42,9 +45,9 @@ def color_gradient(img):
 	gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
 	# Sobel x
-	sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0) # Take the derivative in x
-	abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
-	scaled_sobel = np.uint8(255*abs_sobelx/np.max(abs_sobelx))
+	sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0)  # Take the derivative in x
+	abs_sobelx = np.absolute(sobelx)  # Absolute x derivative to accentuate lines away from horizontal
+	scaled_sobel = np.uint8(255 * abs_sobelx / np.max(abs_sobelx))
 
 	# Threshold x gradient
 	thresh_min = 20
@@ -60,16 +63,16 @@ def color_gradient(img):
 
 	# Stack each channel to view their individual contributions in green and blue respectively
 	# This returns a stack of the two binary images, whose components you can see as different colors
-	color_binary = np.dstack(( np.zeros_like(sxbinary), sxbinary, s_binary)) * 255
+	color_binary = np.dstack((np.zeros_like(sxbinary), sxbinary, s_binary)) * 255
 
 	# Combine the two binary thresholds
 	combined_binary = np.zeros_like(sxbinary)
 	combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
 	return combined_binary
 
+
 # This code is based of the code from lecture 17 - form a stop sign
 def perspective_transform(img):
-
 	offsetX1 = 200
 	offsetX2 = 590
 	src = [[offsetX1, 690],
@@ -91,7 +94,8 @@ def perspective_transform(img):
 	warped = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
 	return warped, Minv
 
-#This code is based of the lecture about Finding the lines
+
+# This code is based of the lecture about Finding the lines
 def reset_sliding_window(binary_warped):
 	# Assuming you have created a warped binary image called "binary_warped"
 	# Take a histogram of the bottom half of the image
@@ -172,7 +176,8 @@ def reset_sliding_window(binary_warped):
 
 	return left_fit, right_fit, leftx, lefty, rightx, righty, ploty, left_fitx, right_fitx
 
-#This code is based of the lecture about Finding the lines
+
+# This code is based of the lecture about Finding the lines
 def sliding_window(left_fit, right_fit):
 	# Assume you now have a new warped binary image
 	# from the next frame of video (also called "binary_warped")
@@ -205,10 +210,11 @@ def sliding_window(left_fit, right_fit):
 	right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
 	return leftx, lefty, rightx, righty, ploty, left_fitx, right_fitx
 
-#This part is influenced by the code in Measuring Curvature
+
+# This part is influenced by the code in Measuring Curvature
 def measure_curvature(leftx, lefty, rightx, righty, ploty):
 	ym_per_pix = 30 / 710  # meters per pixel in y dimension
-	xm_per_pix = 3.7 / 800 # meters per pixel in x dimension
+	xm_per_pix = 3.7 / 800  # meters per pixel in x dimension
 	y_eval = np.max(ploty)
 	left_fit_cr = np.polyfit(lefty * ym_per_pix, xm_per_pix * leftx, 2)
 	right_fit_cr = np.polyfit(righty * ym_per_pix, xm_per_pix * rightx, 2)
@@ -219,8 +225,10 @@ def measure_curvature(leftx, lefty, rightx, righty, ploty):
 		2 * right_fit_cr[0])
 	return left_curverad, right_curverad, left_fit_cr, right_fit_cr
 
-#This part is based of the code from "Tips and Tricks for the Project"
-def plot_lines(image, undist, left_fitx, right_fitx, ploty, warped, Minv, left_fit_cr, right_fit_cr, left_curve, right_curve):
+
+# This part is based of the code from "Tips and Tricks for the Project"
+def plot_lines(image, undist, left_fitx, right_fitx, ploty, warped, Minv, left_fit_cr, right_fit_cr, left_curve,
+			   right_curve):
 	# Create an image to draw the lines on
 	warp_zero = np.zeros_like(warped).astype(np.uint8)
 	color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -243,93 +251,97 @@ def plot_lines(image, undist, left_fitx, right_fitx, ploty, warped, Minv, left_f
 				(10, 30),
 				cv2.FONT_HERSHEY_SIMPLEX,
 				1,
-				(255,255,255),
+				(255, 255, 255),
 				2)
-	cv2.putText(result, "Curvature of left curve in m: "+str(round(left_curve,2)),
+	cv2.putText(result, "Curvature of left curve in m: " + str(round(left_curve, 2)),
 				(10, 70),
 				cv2.FONT_HERSHEY_SIMPLEX,
 				1,
-				(255,255,255),
+				(255, 255, 255),
 				2)
-	cv2.putText(result, "Curvature of right curve in m: "+str(round(right_curve,2)),
+	cv2.putText(result, "Curvature of right curve in m: " + str(round(right_curve, 2)),
 				(10, 110),
 				cv2.FONT_HERSHEY_SIMPLEX,
 				1,
-				(255,255,255),
+				(255, 255, 255),
 				2)
 	return result
 
+
 def offset_from_center(image, left_fit_cr, right_fit_cr):
 	ym_per_pix = 30 / 710  # meters per pixel in y dimension
-	xm_per_pix = 3.7 / 800 # meters per pixel in x dimension
-	#The middle point where the car is
+	xm_per_pix = 3.7 / 800  # meters per pixel in x dimension
+	# The middle point where the car is
 	midpoint = (image.shape[1] / 2) * xm_per_pix
 	# Calculate where the middle of the lane is
 	constant = image.shape[0] * ym_per_pix
-	left_line_start = left_fit_cr[0]*constant**2 + left_fit_cr[1]*constant + left_fit_cr[2]
-	right_line_start = right_fit_cr[0]*constant**2 + right_fit_cr[1]*constant + right_fit_cr[2]
-	#The middle of the lanes
+	left_line_start = left_fit_cr[0] * constant ** 2 + left_fit_cr[1] * constant + left_fit_cr[2]
+	right_line_start = right_fit_cr[0] * constant ** 2 + right_fit_cr[1] * constant + right_fit_cr[2]
+	# The middle of the lanes
 	midLane = (left_line_start + right_line_start) / 2
 	car_offset = midpoint - midLane
 	if car_offset > 0:
-		return "Car offset from midpoint: "+str(round(car_offset,2)) + "m to the right"
+		return "Car offset from midpoint: " + str(round(car_offset, 2)) + "m to the right"
 	else:
 		return "Car offset from midpoint: " + str(round(-car_offset, 2)) + "m to the left"
 
+
 def sanity_check(left_fit_cr, right_fit_cr):
-	#Returns True of the check is NOK return False of check is OK
-	#Check they are seperated by roughly the same distance horizontaly within 5%
-	#Calculate from the start of the line
+	# Returns True of the check is NOK return False of check is OK
+	# Check they are separated by roughly the same distance horizontally within 5%
+	# Calculate from the start of the line
 	constant1 = img.shape[0]
-	#Calculate from the end of the line
+	# Calculate from the end of the line
 	constant2 = 450
-	left_line_start = left_fit_cr[0] * constant ** 2 + left_fit_cr[1] * constant + left_fit_cr[2]
-	right_line_start = right_fit_cr[0] * constant ** 2 + right_fit_cr[1] * constant + right_fit_cr[2]
-	left_line_end = left_fit_cr[0] * constant ** 2 + left_fit_cr[1] * constant + left_fit_cr[2]
-	right_line_end = right_fit_cr[0] * constant ** 2 + right_fit_cr[1] * constant + right_fit_cr[2]
+	left_line_start = left_fit_cr[0] * constant1 ** 2 + left_fit_cr[1] * constant1 + left_fit_cr[2]
+	right_line_start = right_fit_cr[0] * constant1 ** 2 + right_fit_cr[1] * constant1 + right_fit_cr[2]
+	left_line_end = left_fit_cr[0] * constant2 ** 2 + left_fit_cr[1] * constant2 + left_fit_cr[2]
+	right_line_end = right_fit_cr[0] * constant2 ** 2 + right_fit_cr[1] * constant2 + right_fit_cr[2]
 	distance1 = right_line_start - left_line_start
 	distance2 = right_line_end - left_line_end
-	if distance1 > 1.05*distance2 or distance1 < 0.95*distance2:
+	if distance1 > 1.05 * distance2 or distance1 < 0.95 * distance2:
 		return True
 	else:
 		return False
 
 
-
 def main(img):
-	#Correct the image distortion
+	# Correct the image distortion
 	global mtx
 	global dist
 	undist = distortion_correction(mtx, dist, img)
-	#Threshold the image
+	# Threshold the image
 	combined_binary = color_gradient(undist)
 
-	#Perspective transformation
+	# Perspective transformation
 	binary_warped, Minv = perspective_transform(combined_binary)
 
-	#Run a sliding window. If the sanity-check fails then run reset sliding window else run sliding window
-	#left_fit, right_fit = reset_sliding_window(binary_warped)
+	# Run a sliding window. If the sanity-check fails then run reset sliding window else run sliding window
+	# left_fit, right_fit = reset_sliding_window(binary_warped)
 	try:
 		leftx, lefty, rightx, righty, ploty, left_fitx, right_fitx = sliding_window(left_fit, right_fit)
 		left_curve, right_curve, left_fit_cr, right_fit_cr = measure_curvature(leftx, lefty, rightx, righty, ploty)
 		if sanity_check(left_fit_cr, right_fit_cr):
-			left_fit, right_fit, leftx, lefty, rightx, righty, ploty, left_fitx, right_fitx = reset_sliding_window(binary_warped)
+			left_fit, right_fit, leftx, lefty, rightx, righty, ploty, left_fitx, right_fitx = reset_sliding_window(
+				binary_warped)
 	except:
-		left_fit, right_fit, leftx, lefty, rightx, righty, ploty, left_fitx, right_fitx = reset_sliding_window(binary_warped)
+		left_fit, right_fit, leftx, lefty, rightx, righty, ploty, left_fitx, right_fitx = reset_sliding_window(
+			binary_warped)
 		left_curve, right_curve, left_fit_cr, right_fit_cr = measure_curvature(leftx, lefty, rightx, righty, ploty)
 
-	#Plot the image
-	result = plot_lines(img, undist, left_fitx, right_fitx, ploty, binary_warped, Minv, left_fit_cr, right_fit_cr, left_curve, right_curve)
+	# Plot the image
+	result = plot_lines(img, undist, left_fitx, right_fitx, ploty, binary_warped, Minv, left_fit_cr, right_fit_cr,
+						left_curve, right_curve)
 	return result
 
-#First calibrate the camera!
+
+# First calibrate the camera!
 img = cv2.imread('test_images/test1.jpg')
 mtx, dist = calibrate_camera(img)
 
-clips = ('project_video.mp4','challenge_video.mp4','harder_challenge_video.mp4')
+clips = ('project_video.mp4', 'challenge_video.mp4', 'harder_challenge_video.mp4')
 for clip in clips:
 	clip1 = VideoFileClip(clip)
 	write_output = 'output_video/' + clip
-	write_clip = clip1.fl_image(main) #NOTE: this function expects color images!!
+	write_clip = clip1.fl_image(main)  # NOTE: this function expects color images!!
 	write_clip.write_videofile(write_output, audio=False)
-
